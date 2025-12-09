@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Management - DistributedFS</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a1a;
+            color: white;
+        }
+
+        .navbar {
+            background: rgba(10, 10, 26, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 20px 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 25px;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .nav-links a:hover, .nav-links a.active {
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 50px auto;
+            padding: 0 50px;
+        }
+
+        .page-title {
+            font-size: 2.5rem;
+            margin-bottom: 40px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            gap: 20px;
+        }
+
+        .search-box {
+            flex: 1;
+            padding: 15px;
+            background: rgba(10, 10, 26, 0.5);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 12px;
+            color: white;
+            font-size: 1rem;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .file-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .file-card {
+            background: linear-gradient(145deg, #1a1a2e, #16213e);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            transition: all 0.4s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .file-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
+            transform: scale(0);
+            transition: transform 0.5s;
+        }
+
+        .file-card:hover::before {
+            transform: scale(1);
+        }
+
+        .file-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 50px rgba(102, 126, 234, 0.3);
+        }
+
+        .file-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .file-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            word-break: break-word;
+            position: relative;
+            z-index: 1;
+        }
+
+        .file-meta {
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 10px;
+            background: rgba(102, 126, 234, 0.2);
+            border: 1px solid rgba(102, 126, 234, 0.4);
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .action-btn:hover {
+            background: rgba(102, 126, 234, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .action-btn.delete {
+            background: rgba(255, 85, 85, 0.2);
+            border-color: rgba(255, 85, 85, 0.4);
+        }
+
+        .action-btn.delete:hover {
+            background: rgba(255, 85, 85, 0.4);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-top: 10px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .badge-success {
+            background: rgba(0, 255, 0, 0.2);
+            color: #00ff00;
+        }
+
+        .badge-warning {
+            background: rgba(255, 170, 0, 0.2);
+            color: #ffaa00;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 100px 20px;
+            color: #888;
+        }
+
+        .empty-state i {
+            font-size: 5rem;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(145deg, #1a1a2e, #16213e);
+            padding: 40px;
+            border-radius: 20px;
+            max-width: 500px;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0a0a15;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">DistributedFS</div>
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/upload">Upload</a>
+            <a href="/files" class="active">Files</a>
+            <a href="/nodes">Nodes</a>
+            <a href="/monitor">Monitor</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1 class="page-title">File Management</h1>
+
+        <div class="controls">
+            <input type="text" class="search-box" id="searchBox" placeholder="Search files...">
+            <button class="btn" onclick="loadFiles()">
+                <i class="fas fa-sync"></i> Refresh
+            </button>
+            <button class="btn" onclick="verifyAll()">
+                <i class="fas fa-check-circle"></i> Verify All
+            </button>
+        </div>
+
+        <div class="file-grid" id="fileGrid">
+            <div class="empty-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <h3>Loading files...</h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="detailModal">
+        <div class="modal-content">
+            <h3 class="modal-title">File Details</h3>
+            <div id="fileDetails"></div>
+            <div class="modal-actions">
+                <button class="btn" onclick="closeModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api';
+        let allFiles = [];
+
+        async function loadFiles() {
+            try {
+                const response = await fetch(`${API_URL}/files`);
+                const result = await response.json();
+
+                if (result.success) {
+                    allFiles = result.data.files;
+                    displayFiles(allFiles);
+                }
+            } catch (error) {
+                console.error('Error loading files:', error);
+                document.getElementById('fileGrid').innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <h3>Error loading files</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function displayFiles(files) {
+            const grid = document.getElementById('fileGrid');
+
+            if (files.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-folder-open"></i>
+                        <h3>No files found</h3>
+                        <p>Upload some files to get started!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = files.map(file => `
+                <div class="file-card">
+                    <i class="fas fa-file file-icon"></i>
+                    <div class="file-name">${file.name}</div>
+                    <div class="file-meta">
+                        <div><i class="fas fa-database"></i> ${file.size.toFixed(2)} MB</div>
+                        <div><i class="fas fa-cubes"></i> ${file.chunks} chunks</div>
+                        <div><i class="fas fa-copy"></i> ${file.replicas.length}x replicated</div>
+                    </div>
+                    <span class="badge ${file.status === 'healthy' ? 'badge-success' : 'badge-warning'}">
+                        ${file.status.toUpperCase()}
+                    </span>
+                    <div class="file-actions">
+                        <button class="action-btn" onclick="viewDetails(${file.id})">
+                            <i class="fas fa-info-circle"></i> Details
+                        </button>
+                        <button class="action-btn" onclick="downloadFile(${file.id})">
+                            <i class="fas fa-download"></i> Download
+                        </button>
+                        <button class="action-btn delete" onclick="deleteFile(${file.id})">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function viewDetails(fileId) {
+            const file = allFiles.find(f => f.id === fileId);
+            if (!file) return;
+
+            document.getElementById('fileDetails').innerHTML = `
+                <div style="color: #b4b4b4; line-height: 1.8;">
+                    <p><strong>Name:</strong> ${file.name}</p>
+                    <p><strong>Size:</strong> ${file.size.toFixed(2)} MB</p>
+                    <p><strong>Checksum:</strong> ${file.checksum}</p>
+                    <p><strong>Chunks:</strong> ${file.chunks}</p>
+                    <p><strong>Replicas:</strong> Nodes ${file.replicas.join(', ')}</p>
+                    <p><strong>Status:</strong> ${file.status}</p>
+                    <p><strong>Uploaded:</strong> ${new Date(file.uploaded_at).toLocaleString()}</p>
+                </div>
+            `;
+            document.getElementById('detailModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').classList.remove('active');
+        }
+
+        async function downloadFile(fileId) {
+            try {
+                const response = await fetch(`${API_URL}/download/${fileId}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`Download initiated: ${result.data.filename}\nSize: ${result.data.size.toFixed(2)} MB`);
+                }
+            } catch (error) {
+                alert('Error downloading file: ' + error.message);
+            }
+        }
+
+        async function deleteFile(fileId) {
+            if (!confirm('Are you sure you want to delete this file?')) return;
+
+            try {
+                const response = await fetch(`${API_URL}/files/${fileId}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('File deleted successfully!');
+                    loadFiles();
+                }
+            } catch (error) {
+                alert('Error deleting file: ' + error.message);
+            }
+        }
+
+        async function verifyAll() {
+            try {
+                const response = await fetch(`${API_URL}/verify`, { method: 'POST' });
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`Verified ${result.data.length} files successfully!`);
+                    loadFiles();
+                }
+            } catch (error) {
+                alert('Error verifying files: ' + error.message);
+            }
+        }
+
+        // Search functionality
+        document.getElementById('searchBox').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const filtered = allFiles.filter(file => 
+                file.name.toLowerCase().includes(query)
+            );
+            displayFiles(filtered);
+        });
+
+        // Initial load
+        loadFiles();
+
+        // Auto-refresh every 10 seconds
+        setInterval(loadFiles, 10000);
+    </script>
+</body>
+</html>

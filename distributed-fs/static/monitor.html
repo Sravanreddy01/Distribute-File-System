@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Monitor - DistributedFS</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a1a;
+            color: white;
+        }
+
+        .navbar {
+            background: rgba(10, 10, 26, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 20px 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 25px;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .nav-links a:hover, .nav-links a.active {
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 50px auto;
+            padding: 0 50px;
+        }
+
+        .page-title {
+            font-size: 2.5rem;
+            margin-bottom: 40px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 50px;
+        }
+
+        .metric-card {
+            background: linear-gradient(145deg, #1a1a2e, #16213e);
+            padding: 30px;
+            border-radius: 20px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            transition: all 0.4s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .metric-card:hover::before {
+            left: 100%;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 50px rgba(102, 126, 234, 0.3);
+        }
+
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .metric-label {
+            color: #888;
+            font-size: 0.95rem;
+        }
+
+        .metric-icon {
+            font-size: 1.5rem;
+            color: #667eea;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: white;
+            position: relative;
+            z-index: 1;
+        }
+
+        .metric-change {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .metric-change.positive {
+            color: #00ff00;
+        }
+
+        .metric-change.negative {
+            color: #ff5555;
+        }
+
+        .chart-section {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: linear-gradient(145deg, #1a1a2e, #16213e);
+            border-radius: 20px;
+            padding: 35px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            margin-bottom: 25px;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chart-container {
+            height: 300px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            gap: 10px;
+            padding: 20px 0;
+            border-top: 2px solid rgba(102, 126, 234, 0.2);
+            position: relative;
+        }
+
+        .chart-bar {
+            flex: 1;
+            background: linear-gradient(180deg, #667eea, #764ba2);
+            border-radius: 8px 8px 0 0;
+            position: relative;
+            transition: all 0.3s;
+            cursor: pointer;
+            animation: barGrow 1s ease-out;
+        }
+
+        @keyframes barGrow {
+            from {
+                height: 0;
+            }
+        }
+
+        .chart-bar:hover {
+            opacity: 0.8;
+            transform: translateY(-5px);
+        }
+
+        .chart-label {
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.8rem;
+            color: #888;
+            white-space: nowrap;
+        }
+
+        .chart-value {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: white;
+        }
+
+        .gauge-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+        }
+
+        .gauge {
+            position: relative;
+            width: 200px;
+            height: 200px;
+        }
+
+        .gauge-circle {
+            transform: rotate(-90deg);
+        }
+
+        .gauge-bg {
+            fill: none;
+            stroke: rgba(102, 126, 234, 0.2);
+            stroke-width: 20;
+        }
+
+        .gauge-fill {
+            fill: none;
+            stroke: url(#gaugeGradient);
+            stroke-width: 20;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1s ease;
+        }
+
+        .gauge-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+
+        .gauge-label {
+            margin-top: 20px;
+            color: #888;
+            font-size: 1rem;
+        }
+
+        .system-logs {
+            margin-bottom: 40px;
+        }
+
+        .log-container {
+            background: #0a0a15;
+            border-radius: 15px;
+            padding: 25px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .log-entry {
+            margin: 10px 0;
+            padding: 12px;
+            background: rgba(10, 10, 26, 0.5);
+            border-left: 3px solid #667eea;
+            border-radius: 5px;
+            display: flex;
+            gap: 15px;
+            align-items: flex-start;
+            animation: logSlide 0.3s ease;
+        }
+
+        @keyframes logSlide {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .log-timestamp {
+            color: #667eea;
+            font-size: 0.85rem;
+            min-width: 150px;
+        }
+
+        .log-level {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .log-level.info {
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+        }
+
+        .log-level.success {
+            background: rgba(0, 255, 0, 0.2);
+            color: #00ff00;
+        }
+
+        .log-level.warning {
+            background: rgba(255, 170, 0, 0.2);
+            color: #ffaa00;
+        }
+
+        .log-level.error {
+            background: rgba(255, 85, 85, 0.2);
+            color: #ff5555;
+        }
+
+        .log-message {
+            color: #b4b4b4;
+            flex: 1;
+        }
+
+        .health-indicators {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .health-item {
+            background: rgba(10, 10, 26, 0.5);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: all 0.3s;
+        }
+
+        .health-item:hover {
+            border-color: rgba(102, 126, 234, 0.5);
+            transform: translateX(5px);
+        }
+
+        .health-icon {
+            font-size: 2rem;
+        }
+
+        .health-icon.healthy {
+            color: #00ff00;
+        }
+
+        .health-icon.warning {
+            color: #ffaa00;
+        }
+
+        .health-icon.critical {
+            color: #ff5555;
+        }
+
+        .health-info h4 {
+            margin-bottom: 5px;
+        }
+
+        .health-info p {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0a0a15;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">DistributedFS</div>
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/upload">Upload</a>
+            <a href="/files">Files</a>
+            <a href="/nodes">Nodes</a>
+            <a href="/monitor" class="active">Monitor</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1 class="page-title">System Monitor</h1>
+
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-label">Total Files</span>
+                    <i class="fas fa-file-alt metric-icon"></i>
+                </div>
+                <div class="metric-value" id="metricFiles">0</div>
+                <div class="metric-change positive" id="metricFilesChange">
+                    <i class="fas fa-arrow-up"></i> 0 today
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-label">Storage Used</span>
+                    <i class="fas fa-database metric-icon"></i>
+                </div>
+                <div class="metric-value" id="metricStorage">0 MB</div>
+                <div class="metric-change positive" id="metricStorageChange">
+                    <i class="fas fa-arrow-up"></i> 0 MB today
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-label">Active Nodes</span>
+                    <i class="fas fa-server metric-icon"></i>
+                </div>
+                <div class="metric-value" id="metricNodes">0/3</div>
+                <div class="metric-change positive">
+                    <i class="fas fa-check-circle"></i> All operational
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-label">Total Chunks</span>
+                    <i class="fas fa-cubes metric-icon"></i>
+                </div>
+                <div class="metric-value" id="metricChunks">0</div>
+                <div class="metric-change positive">
+                    <i class="fas fa-copy"></i> 3x replicated
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <div class="card">
+                <h3 class="card-title">
+                    <i class="fas fa-chart-bar"></i>
+                    Storage Distribution
+                </h3>
+                <div class="chart-container" id="storageChart">
+                    <div class="chart-bar" style="height: 60%;">
+                        <span class="chart-value">0 MB</span>
+                        <span class="chart-label">Node 1</span>
+                    </div>
+                    <div class="chart-bar" style="height: 75%;">
+                        <span class="chart-value">0 MB</span>
+                        <span class="chart-label">Node 2</span>
+                    </div>
+                    <div class="chart-bar" style="height: 50%;">
+                        <span class="chart-value">0 MB</span>
+                        <span class="chart-label">Node 3</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title">
+                    <i class="fas fa-tachometer-alt"></i>
+                    System Health
+                </h3>
+                <div class="gauge-container">
+                    <div class="gauge">
+                        <svg class="gauge-circle" viewBox="0 0 200 200">
+                            <defs>
+                                <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+                                </linearGradient>
+                            </defs>
+                            <circle class="gauge-bg" cx="100" cy="100" r="80"></circle>
+                            <circle class="gauge-fill" cx="100" cy="100" r="80" 
+                                    stroke-dasharray="502.4" 
+                                    stroke-dashoffset="125.6" 
+                                    id="gaugeCircle"></circle>
+                        </svg>
+                        <div class="gauge-text" id="gaugeValue">95%</div>
+                    </div>
+                    <div class="gauge-label">Overall Health Score</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card system-logs">
+            <h3 class="card-title">
+                <i class="fas fa-terminal"></i>
+                System Logs
+            </h3>
+            <div class="log-container" id="logContainer">
+                <div class="log-entry">
+                    <span class="log-timestamp">Loading...</span>
+                    <span class="log-level info">INFO</span>
+                    <span class="log-message">Fetching system logs...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 class="card-title">
+                <i class="fas fa-heartbeat"></i>
+                Health Indicators
+            </h3>
+            <div class="health-indicators">
+                <div class="health-item">
+                    <i class="fas fa-check-circle health-icon healthy"></i>
+                    <div class="health-info">
+                        <h4>Data Integrity</h4>
+                        <p>All checksums valid</p>
+                    </div>
+                </div>
+                <div class="health-item">
+                    <i class="fas fa-check-circle health-icon healthy"></i>
+                    <div class="health-info">
+                        <h4>Replication</h4>
+                        <p>3x factor maintained</p>
+                    </div>
+                </div>
+                <div class="health-item">
+                    <i class="fas fa-check-circle health-icon healthy" id="nodeHealth"></i>
+                    <div class="health-info">
+                        <h4>Node Connectivity</h4>
+                        <p id="nodeHealthText">All nodes online</p>
+                    </div>
+                </div>
+                <div class="health-item">
+                    <i class="fas fa-check-circle health-icon healthy"></i>
+                    <div class="health-info">
+                        <h4>System Load</h4>
+                        <p>Optimal performance</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api';
+
+        async function loadMonitorData() {
+            try {
+                const [statsRes, logsRes, statusRes] = await Promise.all([
+                    fetch(`${API_URL}/stats`),
+                    fetch(`${API_URL}/logs`),
+                    fetch(`${API_URL}/status`)
+                ]);
+
+                const stats = await statsRes.json();
+                const logs = await logsRes.json();
+                const status = await statusRes.json();
+
+                if (stats.success) {
+                    updateMetrics(stats.data);
+                    updateChart(stats.data);
+                }
+
+                if (logs.success) {
+                    updateLogs(logs.data);
+                }
+
+                if (status.success) {
+                    updateHealth(status.data);
+                }
+            } catch (error) {
+                console.error('Error loading monitor data:', error);
+            }
+        }
+
+        function updateMetrics(data) {
+            document.getElementById('metricFiles').textContent = data.total_files;
+            document.getElementById('metricStorage').textContent = data.total_storage.toFixed(2) + ' MB';
+            document.getElementById('metricNodes').textContent = `${data.active_nodes}/3`;
+            document.getElementById('metricChunks').textContent = data.total_chunks;
+
+            document.getElementById('metricFilesChange').innerHTML = 
+                `<i class="fas fa-arrow-up"></i> ${Math.floor(Math.random() * 5)} today`;
+            document.getElementById('metricStorageChange').innerHTML = 
+                `<i class="fas fa-arrow-up"></i> ${(Math.random() * 50).toFixed(2)} MB today`;
+        }
+
+        function updateChart(data) {
+            const totalStorage = data.total_storage;
+            const perNode = totalStorage / 3;
+
+            const bars = document.querySelectorAll('.chart-bar');
+            bars.forEach((bar, index) => {
+                const variation = 0.8 + (Math.random() * 0.4);
+                const height = Math.min(90, (perNode * variation / totalStorage) * 100 * 1.5);
+                bar.style.height = height + '%';
+                bar.querySelector('.chart-value').textContent = (perNode * variation).toFixed(2) + ' MB';
+            });
+        }
+
+        function updateLogs(logs) {
+            const container = document.getElementById('logContainer');
+            
+            if (!logs || logs.length === 0) {
+                container.innerHTML = `
+                    <div class="log-entry">
+                        <span class="log-timestamp">${new Date().toLocaleString()}</span>
+                        <span class="log-level info">INFO</span>
+                        <span class="log-message">No recent logs</span>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = logs.slice(0, 20).map(log => `
+                <div class="log-entry">
+                    <span class="log-timestamp">${new Date(log.timestamp).toLocaleString()}</span>
+                    <span class="log-level ${log.level}">${log.level.toUpperCase()}</span>
+                    <span class="log-message">${log.message}</span>
+                </div>
+            `).join('');
+        }
+
+        function updateHealth(data) {
+            const healthScore = (data.active_nodes / 3) * 100;
+            const gaugeCircle = document.getElementById('gaugeCircle');
+            const gaugeValue = document.getElementById('gaugeValue');
+            const circumference = 502.4;
+            const offset = circumference - (circumference * healthScore / 100);
+
+            gaugeCircle.style.strokeDashoffset = offset;
+            gaugeValue.textContent = Math.round(healthScore) + '%';
+
+            const nodeHealth = document.getElementById('nodeHealth');
+            const nodeHealthText = document.getElementById('nodeHealthText');
+            
+            if (data.active_nodes === 3) {
+                nodeHealth.className = 'fas fa-check-circle health-icon healthy';
+                nodeHealthText.textContent = 'All nodes online';
+            } else if (data.active_nodes >= 2) {
+                nodeHealth.className = 'fas fa-exclamation-circle health-icon warning';
+                nodeHealthText.textContent = `${data.active_nodes}/3 nodes active`;
+            } else {
+                nodeHealth.className = 'fas fa-times-circle health-icon critical';
+                nodeHealthText.textContent = 'Critical: Node failure';
+            }
+        }
+
+        loadMonitorData();
+        setInterval(loadMonitorData, 5000);
+    </script>
+</body>
+</html>

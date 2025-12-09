@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Files - DistributedFS</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a1a;
+            color: white;
+        }
+
+        .navbar {
+            background: rgba(10, 10, 26, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 20px 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 25px;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .nav-links a:hover, .nav-links a.active {
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 50px auto;
+            padding: 0 50px;
+        }
+
+        .page-title {
+            font-size: 2.5rem;
+            margin-bottom: 40px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .upload-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 50px;
+        }
+
+        .card {
+            background: linear-gradient(145deg, #1a1a2e, #16213e);
+            border-radius: 25px;
+            padding: 40px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .card-title {
+            font-size: 1.8rem;
+            margin-bottom: 30px;
+            color: #667eea;
+        }
+
+        .upload-zone {
+            border: 3px dashed rgba(102, 126, 234, 0.4);
+            border-radius: 20px;
+            padding: 60px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-zone::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
+            transform: scale(0);
+            transition: transform 0.5s;
+        }
+
+        .upload-zone:hover::before {
+            transform: scale(1);
+        }
+
+        .upload-zone:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .upload-zone.dragging {
+            border-color: #764ba2;
+            background: rgba(118, 75, 162, 0.1);
+        }
+
+        .upload-icon {
+            font-size: 5rem;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.2rem;
+            color: #b4b4b4;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            color: #888;
+            font-size: 0.95rem;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 20px;
+            background: rgba(10, 10, 26, 0.5);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 12px;
+            color: white;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .progress-section {
+            margin-top: 40px;
+        }
+
+        .progress-bar {
+            height: 30px;
+            background: rgba(10, 10, 26, 0.5);
+            border-radius: 15px;
+            overflow: hidden;
+            margin-top: 15px;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .console {
+            background: #0a0a15;
+            border-radius: 15px;
+            padding: 25px;
+            font-family: 'Courier New', monospace;
+            color: #00ff00;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .console-line {
+            margin: 8px 0;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .prompt {
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0a0a15;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">DistributedFS</div>
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/upload" class="active">Upload</a>
+            <a href="/files">Files</a>
+            <a href="/nodes">Nodes</a>
+            <a href="/monitor">Monitor</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1 class="page-title">Upload Files</h1>
+
+        <div class="upload-grid">
+            <div class="card">
+                <h3 class="card-title"><i class="fas fa-cloud-upload-alt"></i> Drag & Drop Upload</h3>
+                <input type="file" id="fileInput" style="display: none;" multiple>
+                <div class="upload-zone" id="uploadZone">
+                    <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                    <div class="upload-text">Drag & drop files here</div>
+                    <div class="upload-hint">or click to browse</div>
+                </div>
+                <div class="progress-section" id="progressSection" style="display: none;">
+                    <div>Uploading: <span id="uploadFileName">file.txt</span></div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%">0%</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title"><i class="fas fa-keyboard"></i> Manual Entry</h3>
+                <form id="manualForm">
+                    <input type="text" id="fileName" class="input-field" placeholder="Enter file name (e.g., document.pdf)" required>
+                    <input type="number" id="fileSize" class="input-field" placeholder="Enter size in MB (e.g., 25.5)" step="0.01" min="0.01" required>
+                    <button type="submit" class="btn">
+                        <i class="fas fa-upload"></i> Upload File
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 class="card-title"><i class="fas fa-terminal"></i> Upload Log</h3>
+            <div class="console" id="console">
+                <div class="console-line"><span class="prompt">$</span> Ready to upload files...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api';
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const console = document.getElementById('console');
+
+        function addToConsole(message, color = '#00ff00') {
+            const line = document.createElement('div');
+            line.className = 'console-line';
+            line.style.color = color;
+            line.innerHTML = message;
+            console.appendChild(line);
+            console.scrollTop = console.scrollHeight;
+        }
+
+        // Drag and drop
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragging');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragging');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragging');
+            const files = Array.from(e.dataTransfer.files);
+            uploadFiles(files);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            uploadFiles(files);
+            e.target.value = '';
+        });
+
+        async function uploadFiles(files) {
+            for (const file of files) {
+                await uploadFile(file.name, file.size / (1024 * 1024));
+            }
+        }
+
+        async function uploadFile(filename, sizeMB) {
+            try {
+                addToConsole(`<span class="prompt">$</span> dfs put ${filename}`);
+                addToConsole(`Initiating upload: ${filename} (${sizeMB.toFixed(2)} MB)...`);
+
+                showProgress(filename);
+
+                // Simulate upload progress
+                for (let i = 0; i <= 100; i += 20) {
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    updateProgress(i);
+                }
+
+                const response = await fetch(`${API_URL}/upload`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename, size: sizeMB })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    updateProgress(100);
+                    addToConsole(`✓ Chunking: ${result.data.chunks} chunks created`);
+                    addToConsole(`✓ Checksum: ${result.data.checksum}`);
+                    addToConsole(`✓ Replicated to ${result.data.replicas.length} nodes`);
+                    addToConsole(`✓ Upload successful!`, '#00ff00');
+                    setTimeout(hideProgress, 1000);
+                } else {
+                    addToConsole(`✗ Upload failed: ${result.error}`, '#ff5555');
+                    hideProgress();
+                }
+            } catch (error) {
+                addToConsole(`✗ Error: ${error.message}`, '#ff5555');
+                hideProgress();
+            }
+        }
+
+        function showProgress(filename) {
+            document.getElementById('uploadFileName').textContent = filename;
+            document.getElementById('progressSection').style.display = 'block';
+        }
+
+        function updateProgress(percent) {
+            const fill = document.getElementById('progressFill');
+            fill.style.width = percent + '%';
+            fill.textContent = percent + '%';
+        }
+
+        function hideProgress() {
+            document.getElementById('progressSection').style.display = 'none';
+            document.getElementById('progressFill').style.width = '0%';
+        }
+
+        // Manual form
+        document.getElementById('manualForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const filename = document.getElementById('fileName').value;
+            const size = parseFloat(document.getElementById('fileSize').value);
+
+            if (filename && size > 0) {
+                await uploadFile(filename, size);
+                e.target.reset();
+            }
+        });
+    </script>
+</body>
+</html>

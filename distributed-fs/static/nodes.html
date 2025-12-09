@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node Management - DistributedFS</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a1a;
+            color: white;
+        }
+
+        .navbar {
+            background: rgba(10, 10, 26, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 20px 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 25px;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .nav-links a:hover, .nav-links a.active {
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 50px auto;
+            padding: 0 50px;
+        }
+
+        .page-title {
+            font-size: 2.5rem;
+            margin-bottom: 40px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .topology-section {
+            background: linear-gradient(145deg, #1a1a2e, #16213e);
+            border-radius: 25px;
+            padding: 50px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            margin-bottom: 50px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .topology-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.05) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            margin-bottom: 40px;
+            color: #667eea;
+            position: relative;
+            z-index: 1;
+        }
+
+        .topology {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .master-node {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            padding: 40px 60px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(102, 126, 234, 0.4);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .master-node h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        .connection-line {
+            width: 3px;
+            height: 50px;
+            background: linear-gradient(180deg, #667eea, transparent);
+            position: relative;
+        }
+
+        .connection-line::after {
+            content: '↓';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #667eea;
+            font-size: 1.5rem;
+        }
+
+        .storage-nodes {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .node-card {
+            background: linear-gradient(145deg, #1a1a2e, #16213e);
+            border-radius: 20px;
+            padding: 40px;
+            width: 300px;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .node-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
+            transform: scale(0);
+            transition: transform 0.6s;
+        }
+
+        .node-card:hover::before {
+            transform: scale(1);
+        }
+
+        .node-card:hover {
+            transform: translateY(-15px) scale(1.05);
+            box-shadow: 0 25px 60px rgba(102, 126, 234, 0.4);
+        }
+
+        .node-card.offline {
+            border-color: rgba(255, 85, 85, 0.3);
+            opacity: 0.7;
+        }
+
+        .node-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .node-icon {
+            font-size: 3rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-badge {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-badge.online {
+            background: rgba(0, 255, 0, 0.2);
+            color: #00ff00;
+        }
+
+        .status-badge.offline {
+            background: rgba(255, 85, 85, 0.2);
+            color: #ff5555;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        .node-name {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: white;
+            position: relative;
+            z-index: 1;
+        }
+
+        .node-info {
+            color: #b4b4b4;
+            margin-bottom: 25px;
+            line-height: 1.8;
+            position: relative;
+            z-index: 1;
+        }
+
+        .node-info div {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+        }
+
+        .node-actions {
+            display: flex;
+            gap: 10px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 12px;
+            background: rgba(102, 126, 234, 0.2);
+            border: 1px solid rgba(102, 126, 234, 0.4);
+            border-radius: 10px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .action-btn:hover {
+            background: rgba(102, 126, 234, 0.4);
+            transform: translateY(-3px);
+        }
+
+        .action-btn.danger {
+            background: rgba(255, 85, 85, 0.2);
+            border-color: rgba(255, 85, 85, 0.4);
+        }
+
+        .action-btn.danger:hover {
+            background: rgba(255, 85, 85, 0.4);
+        }
+
+        .action-btn.success {
+            background: rgba(0, 255, 0, 0.2);
+            border-color: rgba(0, 255, 0, 0.4);
+        }
+
+        .action-btn.success:hover {
+            background: rgba(0, 255, 0, 0.4);
+        }
+
+        .stats-card {
+            background: linear-gradient(145deg, #1a1a2e, #16213e);
+            border-radius: 20px;
+            padding: 40px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            margin-top: 50px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 25px;
+            background: rgba(10, 10, 26, 0.5);
+            border-radius: 15px;
+            border: 1px solid rgba(102, 126, 234, 0.1);
+            transition: all 0.3s;
+        }
+
+        .stat-item:hover {
+            transform: translateY(-5px);
+            border-color: rgba(102, 126, 234, 0.4);
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            color: #888;
+            font-size: 1rem;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0a0a15;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">DistributedFS</div>
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/upload">Upload</a>
+            <a href="/files">Files</a>
+            <a href="/nodes" class="active">Nodes</a>
+            <a href="/monitor">Monitor</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1 class="page-title">Node Management</h1>
+
+        <div class="topology-section">
+            <h3 class="section-title"><i class="fas fa-project-diagram"></i> Network Topology</h3>
+            <div class="topology">
+                <div class="master-node">
+                    <i class="fas fa-crown" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                    <h3>Master Node</h3>
+                    <p>Metadata & Coordination</p>
+                </div>
+                <div class="connection-line"></div>
+                <div class="storage-nodes" id="storageNodes">
+                    <div style="text-align: center; color: #888;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i>
+                        <p>Loading nodes...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-card">
+            <h3 class="section-title"><i class="fas fa-chart-bar"></i> Cluster Statistics</h3>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="activeNodesCount">0</div>
+                    <div class="stat-label">Active Nodes</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="totalCapacity">0 GB</div>
+                    <div class="stat-label">Total Capacity</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="replicationFactor">3x</div>
+                    <div class="stat-label">Replication Factor</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="clusterHealth">100%</div>
+                    <div class="stat-label">Cluster Health</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api';
+
+        async function loadNodes() {
+            try {
+                const response = await fetch(`${API_URL}/status`);
+                const result = await response.json();
+
+                if (result.success) {
+                    displayNodes(result.data);
+                    updateStats(result.data);
+                }
+            } catch (error) {
+                console.error('Error loading nodes:', error);
+            }
+        }
+
+        function displayNodes(data) {
+            const container = document.getElementById('storageNodes');
+            const storageNodes = data.nodes.filter(n => n.id !== 0);
+
+            container.innerHTML = storageNodes.map(node => `
+                <div class="node-card ${node.status === 'OFFLINE' ? 'offline' : ''}">
+                    <div class="node-header">
+                        <i class="fas fa-server node-icon"></i>
+                        <span class="status-badge ${node.status === 'ONLINE' ? 'online' : 'offline'}">
+                            <span class="status-indicator" style="background: ${node.status === 'ONLINE' ? '#00ff00' : '#ff5555'};"></span>
+                            ${node.status}
+                        </span>
+                    </div>
+                    <div class="node-name">${node.name}</div>
+                    <div class="node-info">
+                        <div>
+                            <span>Node ID:</span>
+                            <span>${node.id}</span>
+                        </div>
+                        <div>
+                            <span>Capacity:</span>
+                            <span>500 GB</span>
+                        </div>
+                        <div>
+                            <span>Used:</span>
+                            <span>${Math.random() * 300 + 50 | 0} GB</span>
+                        </div>
+                        <div>
+                            <span>Uptime:</span>
+                            <span>${node.status === 'ONLINE' ? '99.9%' : '0%'}</span>
+                        </div>
+                    </div>
+                    <div class="node-actions">
+                        ${node.status === 'ONLINE' 
+                            ? `<button class="action-btn danger" onclick="toggleNode(${node.id})">
+                                <i class="fas fa-power-off"></i> Shutdown
+                               </button>`
+                            : `<button class="action-btn success" onclick="toggleNode(${node.id})">
+                                <i class="fas fa-play"></i> Start
+                               </button>`
+                        }
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateStats(data) {
+            const activeNodes = data.nodes.filter(n => n.status === 'ONLINE' && n.id !== 0).length;
+            document.getElementById('activeNodesCount').textContent = activeNodes;
+            document.getElementById('totalCapacity').textContent = '1500 GB';
+            document.getElementById('replicationFactor').textContent = `${data.replication_factor}x`;
+            document.getElementById('clusterHealth').textContent = `${Math.round((activeNodes / 3) * 100)}%`;
+        }
+
+        async function toggleNode(nodeId) {
+            try {
+                const response = await fetch(`${API_URL}/nodes/${nodeId}/toggle`, {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    setTimeout(() => loadNodes(), 500);
+                }
+            } catch (error) {
+                alert('Error toggling node: ' + error.message);
+            }
+        }
+
+        // Initial load
+        loadNodes();
+
+        // Auto-refresh every 5 seconds
+        setInterval(loadNodes, 5000);
+    </script>
+</body>
+</html>
